@@ -21,24 +21,31 @@ _LOGGER = logging.getLogger(__name__)
 
 # Default entity patterns for Zendure Solarflow
 ZENDURE_ENTITIES = {
+    # Minimum SOC - this is the main control for charge/discharge
+    "min_soc": "number.{device}_min_soc",
     # AC Mode selector (determines charge/discharge mode)
     "ac_mode": "select.{device}_ac_mode",
     # Maximum charge power input
     "max_charge": "number.{device}_maximum_charge",
     # Maximum discharge power output
     "max_discharge": "number.{device}_maximum_discharge",
-    # Battery SOC
-    "soc": "sensor.{device}_battery_level",
+    # Battery SOC (current level)
+    "soc": "sensor.{device}_electric_level",
     # Output limit
     "output_limit": "number.{device}_output_limit",
     # Bypass mode
     "bypass_mode": "select.{device}_bypass_mode",
 }
 
-# AC Mode values for Zendure
-AC_MODE_INPUT = "Input Mode"  # Charging from grid
-AC_MODE_OUTPUT = "Output Mode"  # Discharging to home
-AC_MODE_DISABLED = "Disabled"  # Neither charging nor discharging
+# SOC values for control via min_soc
+SOC_CHARGE = 100  # Set min_soc to 100% to force charging
+SOC_DISCHARGE = 10  # Set min_soc to 10% to allow full discharge
+SOC_IDLE = 50  # Set min_soc to 50% for idle/normal operation
+
+# AC Mode values for Zendure (fallback)
+AC_MODE_INPUT = "AC-Eingangsmodus"  # Charging from grid (German)
+AC_MODE_OUTPUT = "AC-Ausgangsmodus"  # Discharging to home (German)
+AC_MODE_DISABLED = "Deaktiviert"  # Neither charging nor discharging (German)
 
 
 class BatteryController:
@@ -113,69 +120,82 @@ class BatteryController:
             return False
 
     async def _async_start_charging(self, power: int | None = None) -> bool:
-        """Start charging the battery from grid."""
-        _LOGGER.info("Starting battery charging (power: %s W)", power)
+        """Start charging the battery by setting min_soc to 100%."""
+        _LOGGER.info("Starting battery charging via min_soc=100%% (power: %s W)", power)
 
-        # Set AC mode to input (charging)
-        ac_mode_entity = self._get_entity_id("ac_mode")
-        if ac_mode_entity:
+        # Set min_soc to 100% to force charging
+        min_soc_entity = self._get_entity_id("min_soc")
+        if min_soc_entity:
             await self._async_call_service(
-                "select",
-                "select_option",
-                {ATTR_ENTITY_ID: ac_mode_entity, "option": AC_MODE_INPUT},
+                "number",
+                "set_value",
+                {ATTR_ENTITY_ID: min_soc_entity, "value": SOC_CHARGE},
             )
-
-        # Set charge power if specified
-        if power is not None:
-            max_charge_entity = self._get_entity_id("max_charge")
-            if max_charge_entity:
+            _LOGGER.info("Set %s to %d%%", min_soc_entity, SOC_CHARGE)
+        else:
+            _LOGGER.warning("min_soc entity not found, trying AC mode fallback")
+            # Fallback to AC mode
+            ac_mode_entity = self._get_entity_id("ac_mode")
+            if ac_mode_entity:
                 await self._async_call_service(
-                    "number",
-                    "set_value",
-                    {ATTR_ENTITY_ID: max_charge_entity, "value": power},
+                    "select",
+                    "select_option",
+                    {ATTR_ENTITY_ID: ac_mode_entity, "option": AC_MODE_INPUT},
                 )
 
         self._current_state = STATE_CHARGE
         return True
 
     async def _async_start_discharging(self, power: int | None = None) -> bool:
-        """Start discharging the battery to home."""
-        _LOGGER.info("Starting battery discharging (power: %s W)", power)
+        """Start discharging the battery by setting min_soc to minimum."""
+        _LOGGER.info("Starting battery discharging via min_soc=%d%% (power: %s W)", SOC_DISCHARGE, power)
 
-        # Set AC mode to output (discharging)
-        ac_mode_entity = self._get_entity_id("ac_mode")
-        if ac_mode_entity:
+        # Set min_soc to low value to allow discharge
+        min_soc_entity = self._get_entity_id("min_soc")
+        if min_soc_entity:
             await self._async_call_service(
-                "select",
-                "select_option",
-                {ATTR_ENTITY_ID: ac_mode_entity, "option": AC_MODE_OUTPUT},
+                "number",
+                "set_value",
+                {ATTR_ENTITY_ID: min_soc_entity, "value": SOC_DISCHARGE},
             )
-
-        # Set discharge power if specified
-        if power is not None:
-            max_discharge_entity = self._get_entity_id("max_discharge")
-            if max_discharge_entity:
+            _LOGGER.info("Set %s to %d%%", min_soc_entity, SOC_DISCHARGE)
+        else:
+            _LOGGER.warning("min_soc entity not found, trying AC mode fallback")
+            # Fallback to AC mode
+            ac_mode_entity = self._get_entity_id("ac_mode")
+            if ac_mode_entity:
                 await self._async_call_service(
-                    "number",
-                    "set_value",
-                    {ATTR_ENTITY_ID: max_discharge_entity, "value": power},
+                    "select",
+                    "select_option",
+                    {ATTR_ENTITY_ID: ac_mode_entity, "option": AC_MODE_OUTPUT},
                 )
 
         self._current_state = STATE_DISCHARGE
         return True
 
     async def _async_set_idle(self) -> bool:
-        """Set battery to idle (no active charge/discharge)."""
-        _LOGGER.info("Setting battery to idle")
+        """Set battery to idle by setting min_soc to a middle value."""
+        _LOGGER.info("Setting battery to idle via min_soc=%d%%", SOC_IDLE)
 
-        # Set AC mode to disabled
-        ac_mode_entity = self._get_entity_id("ac_mode")
-        if ac_mode_entity:
+        # Set min_soc to a middle value
+        min_soc_entity = self._get_entity_id("min_soc")
+        if min_soc_entity:
             await self._async_call_service(
-                "select",
-                "select_option",
-                {ATTR_ENTITY_ID: ac_mode_entity, "option": AC_MODE_DISABLED},
+                "number",
+                "set_value",
+                {ATTR_ENTITY_ID: min_soc_entity, "value": SOC_IDLE},
             )
+            _LOGGER.info("Set %s to %d%%", min_soc_entity, SOC_IDLE)
+        else:
+            _LOGGER.warning("min_soc entity not found, trying AC mode fallback")
+            # Fallback to AC mode
+            ac_mode_entity = self._get_entity_id("ac_mode")
+            if ac_mode_entity:
+                await self._async_call_service(
+                    "select",
+                    "select_option",
+                    {ATTR_ENTITY_ID: ac_mode_entity, "option": AC_MODE_DISABLED},
+                )
 
         self._current_state = STATE_IDLE
         return True
