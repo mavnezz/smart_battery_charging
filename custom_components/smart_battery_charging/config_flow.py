@@ -153,52 +153,51 @@ class SmartBatteryOptionsFlow(config_entries.OptionsFlow):
         """Find all Zendure devices in Home Assistant."""
         devices: dict[str, str] = {"": "-- Kein Gerät --"}
 
-        # Get device registry
-        device_reg = dr.async_get(self.hass)
+        try:
+            # Get device registry
+            device_reg = dr.async_get(self.hass)
 
-        # Search for Zendure devices
-        for device in device_reg.devices.values():
-            # Check if device is from Zendure integration
-            for identifier in device.identifiers:
-                domain, device_id = identifier
-                if "zendure" in domain.lower():
-                    device_name = device.name or device_id
-                    # Use the device_id as the key (this is what we need for entity control)
-                    devices[device_id] = device_name
+            # Search for Zendure devices
+            for device in device_reg.devices.values():
+                # Check if device is from Zendure integration
+                for identifier in device.identifiers:
+                    try:
+                        if len(identifier) >= 2:
+                            domain = str(identifier[0])
+                            device_id = str(identifier[1])
+                            if "zendure" in domain.lower():
+                                device_name = device.name or device_id
+                                devices[device_id] = device_name
+                    except (IndexError, TypeError):
+                        continue
 
-        # If no devices found via device registry, try entity registry
-        if len(devices) == 1:
-            entity_reg = er.async_get(self.hass)
-            seen_devices = set()
+            # If no devices found via device registry, try entity registry
+            if len(devices) == 1:
+                entity_reg = er.async_get(self.hass)
+                seen_devices: set[str] = set()
 
-            for entity in entity_reg.entities.values():
-                entity_id = entity.entity_id
-                # Look for Zendure entities
-                if "zendure" in entity_id.lower():
-                    # Extract device identifier from entity_id
-                    # e.g., sensor.zendure_solarflow_abc123_battery_level -> solarflow_abc123
-                    parts = entity_id.split(".")
-                    if len(parts) >= 2:
-                        entity_name = parts[1]
-                        # Remove common suffixes to get device name
-                        for suffix in ["_battery_level", "_output_power", "_input_power",
-                                      "_ac_mode", "_bypass_mode", "_state", "_soc"]:
-                            if entity_name.endswith(suffix):
-                                device_id = entity_name[:-len(suffix)]
-                                if device_id not in seen_devices:
-                                    seen_devices.add(device_id)
-                                    # Get friendly name from entity
-                                    state = self.hass.states.get(entity_id)
-                                    friendly_name = device_id.replace("_", " ").title()
-                                    if state and state.attributes.get("friendly_name"):
-                                        fn = state.attributes["friendly_name"]
-                                        # Extract device part from friendly name
-                                        for s in ["Battery Level", "Output Power", "Input Power"]:
-                                            if s in fn:
-                                                friendly_name = fn.replace(s, "").strip()
-                                                break
-                                    devices[device_id] = friendly_name
-                                break
+                for entity in entity_reg.entities.values():
+                    entity_id = entity.entity_id
+                    # Look for Zendure entities
+                    if "zendure" in entity_id.lower():
+                        # Extract device identifier from entity_id
+                        parts = entity_id.split(".")
+                        if len(parts) >= 2:
+                            entity_name = parts[1]
+                            # Remove common suffixes to get device name
+                            for suffix in ["_battery_level", "_output_power", "_input_power",
+                                          "_ac_mode", "_bypass_mode", "_state", "_soc",
+                                          "_electric_level", "_solar_input_power"]:
+                                if entity_name.endswith(suffix):
+                                    dev_id = entity_name[:-len(suffix)]
+                                    if dev_id not in seen_devices:
+                                        seen_devices.add(dev_id)
+                                        friendly_name = dev_id.replace("_", " ").title()
+                                        devices[dev_id] = friendly_name
+                                    break
+
+        except Exception as err:
+            _LOGGER.error("Error finding Zendure devices: %s", err)
 
         return devices
 
