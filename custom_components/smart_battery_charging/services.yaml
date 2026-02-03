@@ -1,0 +1,54 @@
+set_battery_state:
+  name: Set Battery State
+  description: Set the battery charging/discharging state
+  fields:
+    state:
+      name: State
+      description: The desired battery state
+      required: true
+      selector:
+        select:
+          options:
+            - label: Charge
+              value: charge
+            - label: Discharge
+              value: discharge
+            - label: Idle
+              value: idle
+            - label: Off
+              value: off
+    charge_power:
+      name: Charge Power
+      description: Charging power in watts (optional)
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 2400
+          unit_of_measurement: W
+    discharge_power:
+      name: Discharge Power
+      description: Discharging power in watts (optional)
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 800
+          unit_of_measurement: W
+    entry_id:
+      name: Entry ID
+      description: Config entry ID (optional, uses first entry if not specified)
+      required: false
+      selector:
+        text:
+
+recalculate_windows:
+  name: Recalculate Windows
+  description: Force recalculation of optimal charging/discharging windows
+  fields:
+    entry_id:
+      name: Entry ID
+      description: Config entry ID (optional)
+      required: false
+      selector:
+        text:

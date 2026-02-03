@@ -1,0 +1,45 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Tibber Configuration",
+        "description": "Enter your Tibber API token. You can get it from {token_url}",
+        "data": {
+          "tibber_token": "Tibber API Token"
+        }
+      },
+      "select_home": {
+        "title": "Select Home",
+        "description": "Select the home to use for price data",
+        "data": {
+          "home_id": "Home"
+        }
+      }
+    },
+    "error": {
+      "invalid_token": "Invalid Tibber API token",
+      "no_homes": "No homes found in your Tibber account",
+      "cannot_connect": "Cannot connect to Tibber API"
+    },
+    "abort": {
+      "already_configured": "This home is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Smart Battery Charging Options",
+        "data": {
+          "price_resolution": "Price Resolution",
+          "charge_windows": "Number of Charging Windows",
+          "discharge_windows": "Number of Discharging Windows",
+          "cheap_percentile": "Cheap Price Percentile",
+          "expensive_percentile": "Expensive Price Percentile",
+          "min_spread": "Minimum Price Spread (%)",
+          "battery_capacity": "Battery Capacity (kWh)",
+          "battery_efficiency": "Battery Round-Trip Efficiency"
+        }
+      }
+    }
+  }
+}

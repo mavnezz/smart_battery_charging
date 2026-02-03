@@ -1,0 +1,45 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Tibber Konfiguration",
+        "description": "Gib deinen Tibber API Token ein. Du findest ihn unter {token_url}",
+        "data": {
+          "tibber_token": "Tibber API Token"
+        }
+      },
+      "select_home": {
+        "title": "Zuhause auswählen",
+        "description": "Wähle das Zuhause für die Preisdaten",
+        "data": {
+          "home_id": "Zuhause"
+        }
+      }
+    },
+    "error": {
+      "invalid_token": "Ungültiger Tibber API Token",
+      "no_homes": "Keine Häuser in deinem Tibber-Konto gefunden",
+      "cannot_connect": "Verbindung zur Tibber API nicht möglich"
+    },
+    "abort": {
+      "already_configured": "Dieses Zuhause ist bereits konfiguriert"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Smart Battery Charging Optionen",
+        "data": {
+          "price_resolution": "Preisauflösung",
+          "charge_windows": "Anzahl Ladefenster",
+          "discharge_windows": "Anzahl Entladefenster",
+          "cheap_percentile": "Günstiges Preis-Perzentil",
+          "expensive_percentile": "Teures Preis-Perzentil",
+          "min_spread": "Minimale Preisspanne (%)",
+          "battery_capacity": "Batteriekapazität (kWh)",
+          "battery_efficiency": "Batterie-Wirkungsgrad"
+        }
+      }
+    }
+  }
+}

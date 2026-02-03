@@ -1,0 +1,12 @@
+{
+  "domain": "smart_battery_charging",
+  "name": "Smart Battery Charging",
+  "codeowners": ["@sirjuls44"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/sirjuls44/smart_battery_charging",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/sirjuls44/smart_battery_charging/issues",
+  "requirements": ["gql[aiohttp]>=3.4.0"],
+  "version": "0.1.0"
+}
