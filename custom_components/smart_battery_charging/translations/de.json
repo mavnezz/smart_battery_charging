@@ -30,6 +30,7 @@
       "init": {
         "title": "Smart Battery Charging Optionen",
         "data": {
+          "zendure_device_id": "Zendure Gerät",
           "price_resolution": "Preisauflösung",
           "charge_windows": "Anzahl Ladefenster",
           "discharge_windows": "Anzahl Entladefenster",

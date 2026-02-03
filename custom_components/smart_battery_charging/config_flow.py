@@ -11,6 +11,8 @@ from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr
 
 from .const import (
     DOMAIN,
@@ -147,6 +149,59 @@ class SmartBatteryOptionsFlow(config_entries.OptionsFlow):
         """Initialize options flow."""
         self.config_entry = config_entry
 
+    def _find_zendure_devices(self) -> dict[str, str]:
+        """Find all Zendure devices in Home Assistant."""
+        devices: dict[str, str] = {"": "-- Kein Gerät --"}
+
+        # Get device registry
+        device_reg = dr.async_get(self.hass)
+
+        # Search for Zendure devices
+        for device in device_reg.devices.values():
+            # Check if device is from Zendure integration
+            for identifier in device.identifiers:
+                domain, device_id = identifier
+                if "zendure" in domain.lower():
+                    device_name = device.name or device_id
+                    # Use the device_id as the key (this is what we need for entity control)
+                    devices[device_id] = device_name
+
+        # If no devices found via device registry, try entity registry
+        if len(devices) == 1:
+            entity_reg = er.async_get(self.hass)
+            seen_devices = set()
+
+            for entity in entity_reg.entities.values():
+                entity_id = entity.entity_id
+                # Look for Zendure entities
+                if "zendure" in entity_id.lower():
+                    # Extract device identifier from entity_id
+                    # e.g., sensor.zendure_solarflow_abc123_battery_level -> solarflow_abc123
+                    parts = entity_id.split(".")
+                    if len(parts) >= 2:
+                        entity_name = parts[1]
+                        # Remove common suffixes to get device name
+                        for suffix in ["_battery_level", "_output_power", "_input_power",
+                                      "_ac_mode", "_bypass_mode", "_state", "_soc"]:
+                            if entity_name.endswith(suffix):
+                                device_id = entity_name[:-len(suffix)]
+                                if device_id not in seen_devices:
+                                    seen_devices.add(device_id)
+                                    # Get friendly name from entity
+                                    state = self.hass.states.get(entity_id)
+                                    friendly_name = device_id.replace("_", " ").title()
+                                    if state and state.attributes.get("friendly_name"):
+                                        fn = state.attributes["friendly_name"]
+                                        # Extract device part from friendly name
+                                        for s in ["Battery Level", "Output Power", "Input Power"]:
+                                            if s in fn:
+                                                friendly_name = fn.replace(s, "").strip()
+                                                break
+                                    devices[device_id] = friendly_name
+                                break
+
+        return devices
+
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
@@ -156,17 +211,29 @@ class SmartBatteryOptionsFlow(config_entries.OptionsFlow):
 
         options = self.config_entry.options
 
+        # Find available Zendure devices
+        zendure_devices = self._find_zendure_devices()
+        current_device = options.get(CONF_ZENDURE_DEVICE_ID, "")
+
+        # If current device not in list, add it
+        if current_device and current_device not in zendure_devices:
+            zendure_devices[current_device] = current_device
+
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
                 {
                     vol.Optional(
+                        CONF_ZENDURE_DEVICE_ID,
+                        default=current_device,
+                    ): vol.In(zendure_devices),
+                    vol.Optional(
                         CONF_PRICE_RESOLUTION,
                         default=options.get(CONF_PRICE_RESOLUTION, RESOLUTION_HOURLY),
                     ): vol.In(
                         {
-                            RESOLUTION_HOURLY: "Hourly (24 windows/day)",
-                            RESOLUTION_QUARTERLY: "15 Minutes (96 windows/day)",
+                            RESOLUTION_HOURLY: "Stündlich (24 Fenster/Tag)",
+                            RESOLUTION_QUARTERLY: "15 Minuten (96 Fenster/Tag)",
                         }
                     ),
                     vol.Optional(
@@ -197,13 +264,6 @@ class SmartBatteryOptionsFlow(config_entries.OptionsFlow):
                         CONF_BATTERY_EFFICIENCY,
                         default=options.get(CONF_BATTERY_EFFICIENCY, DEFAULT_BATTERY_EFFICIENCY),
                     ): vol.All(vol.Coerce(float), vol.Range(min=0.5, max=1.0)),
-                    vol.Optional(
-                        CONF_ZENDURE_DEVICE_ID,
-                        default=options.get(CONF_ZENDURE_DEVICE_ID, ""),
-                    ): str,
                 }
             ),
-            description_placeholders={
-                "zendure_help": "Enter the device name from Zendure entity IDs (e.g., 'solarflow_abc123')"
-            },
         )
