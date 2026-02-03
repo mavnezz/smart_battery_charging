@@ -9,14 +9,10 @@ set_battery_state:
       selector:
         select:
           options:
-            - label: Charge
-              value: charge
-            - label: Discharge
-              value: discharge
-            - label: Idle
-              value: idle
-            - label: Off
-              value: off
+            - "charge"
+            - "discharge"
+            - "idle"
+            - "off"
     charge_power:
       name: Charge Power
       description: Charging power in watts (optional)

@@ -139,7 +139,7 @@ class SmartBatteryConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         config_entry: config_entries.ConfigEntry,
     ) -> SmartBatteryOptionsFlow:
         """Get the options flow for this handler."""
-        return SmartBatteryOptionsFlow(config_entry)
+        return SmartBatteryOptionsFlow()
 
 
 class SmartBatteryOptionsFlow(config_entries.OptionsFlow):
