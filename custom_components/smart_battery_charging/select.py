@@ -70,7 +70,7 @@ class OperatingModeSelect(CoordinatorEntity[SmartBatteryCoordinator], SelectEnti
             "name": "Smart Battery Charging",
             "manufacturer": "mavnezz",
             "model": "Tibber Price Optimizer",
-            "sw_version": "0.2.5",
+            "sw_version": "0.2.7",
         }
 
     @property
