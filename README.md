@@ -1,88 +1,214 @@
 # Smart Battery Charging
 
-A Home Assistant custom integration that optimizes battery charging and discharging based on dynamic electricity prices from Tibber.
+[![Version](https://img.shields.io/badge/version-0.2.9-blue.svg)](https://github.com/mavnezz/smart_battery_charging/releases)
+[![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-## Features
+Eine Home Assistant Integration zur automatischen Steuerung von Batteriespeichern basierend auf dynamischen Strompreisen von Tibber.
 
-- **Tibber Integration**: Fetches real-time and forecast electricity prices via Tibber GraphQL API
-- **Price Analysis**: Identifies cheapest windows for charging and most expensive windows for discharging
-- **Zendure Solarflow Support**: Controls Zendure Solarflow 800 Pro (and compatible devices)
-- **Automatic Mode**: Automatically switches between charge/discharge/idle based on current prices
-- **Configurable**: Adjustable percentiles, window counts, and efficiency settings
+## Funktionen
 
-## Sensors
+- **Tibber-Anbindung**: Echtzeit- und Vorhersage-Strompreise via Tibber GraphQL API
+- **Preisanalyse**: Identifiziert günstigste Ladefenster und teuerste Entladefenster
+- **Profitabilitäts-Check**: Berücksichtigt Wirkungsgradverluste - handelt nur wenn es sich lohnt
+- **Zendure Solarflow Support**: Steuert Zendure Solarflow 800 Pro via min_soc
+- **Betriebsmodi**: Off, Auto, Laden, Entladen - flexibel einstellbar
+- **Smart Meter Mode kompatibel**: Arbeitet mit Zendures Nulleinspeisung zusammen
 
-| Sensor | Description |
-|--------|-------------|
-| Current Price | Current electricity price |
-| Average Price | Average price for today/tomorrow |
-| Price Spread | Difference between min and max price (%) |
-| Recommended State | charge, discharge, or idle |
-| Cheapest Windows | Count and times of cheapest price windows |
-| Expensive Windows | Count and times of most expensive windows |
-| Next Cheap Window | Next upcoming cheap window |
-| Next Expensive Window | Next upcoming expensive window |
-| Potential Savings | Estimated savings per kWh |
+## So funktioniert's
+
+### Preisfenster-Berechnung
+
+Die Integration analysiert alle Strompreise für heute und morgen:
+
+1. **Günstigste Stunden** (z.B. untere 25%) → Ladefenster
+2. **Teuerste Stunden** (z.B. obere 25%) → Entladefenster
+3. **Dazwischen** → Idle (normale Nutzung)
+
+### Profitabilitäts-Check
+
+Vor jeder Aktion wird geprüft, ob sich das Laden/Entladen **wirtschaftlich lohnt**:
+
+```
+Erforderlicher Spread = max(Breakeven-Spread, Konfigurierter min_spread)
+
+Breakeven-Spread = (1 / Wirkungsgrad - 1) × 100%
+                 = (1 / 0.85 - 1) × 100% = 17,6%
+```
+
+**Beispiel mit Default-Einstellungen (30% min_spread, 85% Effizienz):**
+
+| Situation | Spread | Aktion |
+|-----------|--------|--------|
+| Günstig: 25c → Teuer: 35c | 40% | Laden/Entladen |
+| Günstig: 26c → Teuer: 31c | 19% | IDLE (lohnt sich nicht) |
+
+### Batteriesteuerung via min_soc
+
+Die Steuerung erfolgt über den `min_soc`-Wert des Zendure-Geräts:
+
+| Modus | min_soc | Effekt |
+|-------|---------|--------|
+| **Laden** | 100% | Batterie lädt bis 100% |
+| **Idle** | 50% | Normale Nutzung, Reserve halten |
+| **Entladen** | 10% | Batterie kann fast vollständig entladen |
+
+> **Hinweis:** Im Smart Meter Mode regelt Zendure weiterhin die Nulleinspeisung. Diese Integration steuert nur, wie viel Energie verfügbar gemacht wird.
+
+## Betriebsmodi
+
+| Modus | Beschreibung |
+|-------|--------------|
+| **Off** | Integration deaktiviert, Batterie auf Idle (50%) |
+| **Auto** | Automatischer Wechsel basierend auf Strompreisen |
+| **Charge** | Erzwingt Laden (min_soc=100%) |
+| **Discharge** | Erzwingt Entladen (min_soc=10%) |
+
+## Sensoren
+
+| Sensor | Beschreibung |
+|--------|--------------|
+| **Current Price** | Aktueller Strompreis (€/kWh) |
+| **Average Price** | Durchschnittspreis heute/morgen |
+| **Price Spread** | Unterschied zwischen Min/Max Preis (%) |
+| **Recommended State** | Empfohlener Zustand: charge, discharge, idle |
+| **Cheapest Windows** | Anzahl und Zeiten der günstigsten Fenster |
+| **Expensive Windows** | Anzahl und Zeiten der teuersten Fenster |
+| **Next Cheap Window** | Nächstes günstiges Zeitfenster |
+| **Next Expensive Window** | Nächstes teures Zeitfenster |
+| **Potential Savings** | Geschätzte Ersparnis pro kWh |
+
+### Zusätzliche Sensor-Attribute
+
+- `is_profitable` - Ist die aktuelle Operation profitabel?
+- `avg_charge_price` - Durchschnittlicher Ladepreis
+- `avg_discharge_price` - Durchschnittlicher Entladepreis
+- `required_spread` - Erforderlicher Mindest-Spread
 
 ## Installation
 
-### HACS (Recommended)
+### HACS (Empfohlen)
 
-1. Open HACS in Home Assistant
-2. Click on "Integrations"
-3. Click the three dots menu and select "Custom repositories"
-4. Add this repository URL and select "Integration" as category
-5. Search for "Smart Battery Charging" and install it
-6. Restart Home Assistant
+1. HACS in Home Assistant öffnen
+2. "Integrationen" auswählen
+3. Drei-Punkte-Menü → "Benutzerdefinierte Repositories"
+4. Repository-URL hinzufügen: `https://github.com/mavnezz/smart_battery_charging`
+5. Kategorie: "Integration"
+6. "Smart Battery Charging" suchen und installieren
+7. Home Assistant neu starten
 
-### Manual Installation
+### Manuelle Installation
 
-1. Copy the `custom_components/smart_battery_charging` folder to your Home Assistant `config/custom_components/` directory
-2. Restart Home Assistant
+1. Den Ordner `custom_components/smart_battery_charging` in dein Home Assistant `config/custom_components/` Verzeichnis kopieren
+2. Home Assistant neu starten
 
-## Configuration
+## Konfiguration
 
-1. Go to Settings → Devices & Services → Add Integration
-2. Search for "Smart Battery Charging"
-3. Enter your Tibber API token (get it from https://developer.tibber.com/settings/access-token)
-4. Select your home if you have multiple
-5. Configure options:
-   - Price resolution (hourly or 15-minute)
-   - Number of charge/discharge windows
-   - Price percentiles
-   - Battery capacity and efficiency
-   - Zendure device name (from entity IDs)
+### Ersteinrichtung
 
-## Requirements
+1. **Einstellungen → Geräte & Dienste → Integration hinzufügen**
+2. Nach "Smart Battery Charging" suchen
+3. Tibber API Token eingeben (von https://developer.tibber.com/settings/access-token)
+4. Bei mehreren Häusern das gewünschte auswählen
 
-- Home Assistant 2024.1 or newer
-- Tibber account with API access
-- For battery control: [Zendure Home Assistant Integration](https://github.com/Zendure/Zendure-HA)
+### Optionen
 
-## Usage
+| Option | Default | Beschreibung |
+|--------|---------|--------------|
+| **Zendure Gerät** | - | Name des Zendure-Geräts (aus Entity-IDs) |
+| **Preisauflösung** | Stündlich | Stündlich oder 15-Minuten |
+| **Anzahl Ladefenster** | 6 | Max. Stunden für Laden |
+| **Anzahl Entladefenster** | 3 | Max. Stunden für Entladen |
+| **Günstiges Perzentil** | 25% | Welche Preise gelten als günstig |
+| **Teures Perzentil** | 75% | Welche Preise gelten als teuer |
+| **Min. Spread** | 30% | Mindest-Preisunterschied für Aktion |
+| **Batterie-Kapazität** | 0.8 kWh | Nutzbare Kapazität |
+| **Batterie-Wirkungsgrad** | 85% | Roundtrip-Effizienz |
 
-### Auto Mode
+### Zendure-Gerät finden
 
-Enable the "Auto Mode" switch to automatically control your battery:
-- **Charges** during the cheapest price windows
-- **Discharges** during the most expensive price windows
-- **Idles** at other times
+Der Gerätename entspricht dem Prefix deiner Zendure-Entities:
 
-### Manual Control
+```
+number.solarflow_800_pro_min_soc
+       ^^^^^^^^^^^^^^^^
+       Das ist der Gerätename
+```
 
-Use the `smart_battery_charging.set_battery_state` service:
+## Services
+
+### smart_battery_charging.set_battery_state
+
+Manuelles Setzen des Batterie-Zustands:
 
 ```yaml
 service: smart_battery_charging.set_battery_state
 data:
-  state: charge  # or discharge, idle, off
-  charge_power: 800  # optional, watts
+  state: charge  # charge, discharge, idle, off
+  charge_power: 800  # optional, in Watt
+  discharge_power: 800  # optional, in Watt
 ```
 
-## License
+### smart_battery_charging.recalculate_windows
 
-MIT License - see LICENSE file for details.
+Neuberechnung der Preisfenster erzwingen:
 
-## Contributing
+```yaml
+service: smart_battery_charging.recalculate_windows
+```
 
-Contributions are welcome! Please open an issue or pull request.
+## Voraussetzungen
+
+- Home Assistant 2024.1 oder neuer
+- Tibber-Konto mit API-Zugang
+- Für Batteriesteuerung: [Zendure Home Assistant Integration](https://github.com/Zendure/Zendure-HA)
+
+## FAQ
+
+### Warum passiert nichts, obwohl es günstige Stunden gibt?
+
+Der Profitabilitäts-Check hat festgestellt, dass der Preisunterschied zu gering ist. Prüfe:
+- `is_profitable` Attribut am Sensor
+- `required_spread` vs. aktueller Spread
+- Eventuell `min_spread` in den Optionen reduzieren
+
+### Wie finde ich mein Zendure-Gerät?
+
+Suche in den Entwicklerwerkzeugen → Zustände nach `_min_soc`. Der Teil vor `_min_soc` ist dein Gerätename.
+
+### Funktioniert das mit Smart Meter Mode?
+
+Ja! Die Integration steuert nur den `min_soc`-Wert. Zendures Smart Meter Mode regelt weiterhin die Nulleinspeisung.
+
+### Kann ich den Wirkungsgrad anpassen?
+
+Ja, in den Integrationsoptionen. 85% ist ein guter Standardwert für Lithium-Batterien mit Wechselrichter.
+
+## Changelog
+
+### v0.2.9
+- Profitabilitäts-Check: Berücksichtigt Wirkungsgradverluste
+- OFF-Mode Bug behoben: Setzt jetzt korrekt auf Idle
+- Neue Sensor-Attribute: is_profitable, avg_charge_price, avg_discharge_price
+- Default min_spread auf 30% erhöht
+
+### v0.2.8
+- Verbesserte Zendure-Geräte-Erkennung
+- Integration-Icon hinzugefügt
+
+### v0.2.7
+- Betriebsmodus-Dropdown (off/auto/charge/discharge)
+- min_soc-Steuerung statt AC-Mode
+
+## Lizenz
+
+MIT License - siehe LICENSE Datei.
+
+## Mitwirken
+
+Beiträge sind willkommen! Bitte öffne ein Issue oder einen Pull Request.
+
+---
+
+**Autor:** mavnezz
+**Repository:** https://github.com/mavnezz/smart_battery_charging

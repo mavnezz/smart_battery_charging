@@ -1,7 +1,7 @@
 """Constants for Smart Battery Charging integration."""
 
 DOMAIN = "smart_battery_charging"
-VERSION = "0.2.8"
+VERSION = "0.2.9"
 
 # Configuration keys
 CONF_TIBBER_TOKEN = "tibber_token"
@@ -32,7 +32,7 @@ DEFAULT_CHARGE_WINDOWS = 6
 DEFAULT_DISCHARGE_WINDOWS = 3
 DEFAULT_CHEAP_PERCENTILE = 25
 DEFAULT_EXPENSIVE_PERCENTILE = 75
-DEFAULT_MIN_SPREAD = 20  # Minimum price spread in %
+DEFAULT_MIN_SPREAD = 30  # Minimum price spread in % (must exceed this + efficiency losses)
 DEFAULT_BATTERY_EFFICIENCY = 0.85  # 85% round-trip efficiency
 
 # Operational states

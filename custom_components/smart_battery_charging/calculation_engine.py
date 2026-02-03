@@ -67,6 +67,10 @@ class CalculationResult:
     max_price: float
     spread_percent: float
     potential_savings: float
+    is_profitable: bool = True
+    avg_charge_price: float = 0.0
+    avg_discharge_price: float = 0.0
+    required_spread: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for sensor attributes."""
@@ -80,6 +84,10 @@ class CalculationResult:
             "max_price": round(self.max_price, 4),
             "spread_percent": round(self.spread_percent, 2),
             "potential_savings": round(self.potential_savings, 4),
+            "is_profitable": self.is_profitable,
+            "avg_charge_price": round(self.avg_charge_price, 4),
+            "avg_discharge_price": round(self.avg_discharge_price, 4),
+            "required_spread": round(self.required_spread, 2),
         }
 
 
@@ -174,7 +182,6 @@ class CalculationEngine:
                 break
 
         # Calculate potential savings
-        # (avg expensive - avg cheap) * battery_capacity * efficiency
         avg_cheap = (
             sum(w.value for w in cheap_windows) / len(cheap_windows)
             if cheap_windows
@@ -185,7 +192,43 @@ class CalculationEngine:
             if expensive_windows
             else avg_price
         )
-        potential_savings = (avg_expensive - avg_cheap) * self.battery_efficiency
+
+        # Calculate if operation is profitable considering efficiency losses
+        # Breakeven: discharge_price > charge_price / efficiency
+        # Required spread for breakeven: (1 / efficiency - 1) * 100 %
+        breakeven_spread = (1 / self.battery_efficiency - 1) * 100  # ~17.6% at 85% efficiency
+
+        # Use the higher of: breakeven spread or user-configured min_spread
+        required_spread = max(breakeven_spread, self.min_spread)
+
+        # Actual spread between charge and discharge prices
+        actual_spread_percent = (
+            ((avg_expensive - avg_cheap) / avg_cheap * 100)
+            if avg_cheap > 0
+            else 0
+        )
+
+        # Check if profitable
+        is_profitable = actual_spread_percent >= required_spread
+
+        # Calculate net savings per kWh after efficiency losses
+        # Savings = (discharge_price * efficiency) - charge_price
+        # Or: Savings = discharge_price - (charge_price / efficiency)
+        if is_profitable and avg_cheap > 0:
+            # Net savings = what you get back - what you paid (accounting for losses)
+            potential_savings = (avg_expensive * self.battery_efficiency) - avg_cheap
+        else:
+            potential_savings = 0.0
+            # If not profitable, don't recommend charge/discharge
+            if recommended_state != STATE_IDLE:
+                recommended_state = STATE_IDLE
+                _LOGGER.info(
+                    "Operation not profitable: spread %.1f%% < required %.1f%% (breakeven=%.1f%%, min_spread=%.1f%%)",
+                    actual_spread_percent,
+                    required_spread,
+                    breakeven_spread,
+                    self.min_spread,
+                )
 
         return CalculationResult(
             cheapest_windows=sorted(cheap_windows, key=lambda x: x.start),
@@ -197,6 +240,10 @@ class CalculationEngine:
             max_price=max_price,
             spread_percent=spread,
             potential_savings=potential_savings,
+            is_profitable=is_profitable,
+            avg_charge_price=avg_cheap,
+            avg_discharge_price=avg_expensive,
+            required_spread=required_spread,
         )
 
     def _prices_to_windows(
@@ -253,6 +300,8 @@ class CalculationEngine:
 
     def _empty_result(self) -> CalculationResult:
         """Return an empty result when no data is available."""
+        breakeven_spread = (1 / self.battery_efficiency - 1) * 100
+        required_spread = max(breakeven_spread, self.min_spread)
         return CalculationResult(
             cheapest_windows=[],
             expensive_windows=[],
@@ -263,6 +312,10 @@ class CalculationEngine:
             max_price=0.0,
             spread_percent=0.0,
             potential_savings=0.0,
+            is_profitable=False,
+            avg_charge_price=0.0,
+            avg_discharge_price=0.0,
+            required_spread=required_spread,
         )
 
     def get_next_window(

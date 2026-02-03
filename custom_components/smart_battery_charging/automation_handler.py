@@ -79,10 +79,12 @@ class AutomationHandler:
             self._cancel_timer = None
 
         if mode == MODE_OFF:
-            # Disable everything, set battery to idle
-            self.battery_controller.enabled = False
+            # Set battery to idle first, then disable controller
+            self.battery_controller.enabled = True  # Temporarily enable to set state
             await self.battery_controller.async_set_state(STATE_IDLE)
-            _LOGGER.info("Battery control disabled")
+            self.battery_controller.enabled = False
+            self._last_state = STATE_IDLE
+            _LOGGER.info("Battery control disabled, set to idle")
 
         elif mode == MODE_AUTO:
             # Enable automatic mode with periodic checks
