@@ -60,9 +60,9 @@ class SmartBatterySensorBase(CoordinatorEntity[SmartBatteryCoordinator], SensorE
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry.entry_id)},
             "name": "Smart Battery Charging",
-            "manufacturer": "Community",
+            "manufacturer": "mavnezz",
             "model": "Tibber Price Optimizer",
-            "sw_version": "0.1.0",
+            "sw_version": "0.2.4",
         }
 
     @property

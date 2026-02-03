@@ -27,6 +27,12 @@ _LOGGER = logging.getLogger(__name__)
 # Check interval in seconds
 AUTO_CHECK_INTERVAL = 60
 
+# Operating modes
+MODE_OFF = "off"
+MODE_AUTO = "auto"
+MODE_CHARGE = "charge"
+MODE_DISCHARGE = "discharge"
+
 
 class AutomationHandler:
     """Handler for automatic battery control based on price windows."""
@@ -43,58 +49,84 @@ class AutomationHandler:
         self.coordinator = coordinator
         self.battery_controller = battery_controller
         self.entry_id = entry_id
-        self._enabled = False
+        self._mode = MODE_OFF
         self._cancel_timer = None
         self._last_state = STATE_IDLE
         self._min_soc = 10  # Minimum SOC before stopping discharge
         self._max_soc = 100  # Maximum SOC before stopping charge
 
     @property
+    def mode(self) -> str:
+        """Return the current operating mode."""
+        return self._mode
+
+    @property
     def enabled(self) -> bool:
-        """Return whether automatic control is enabled."""
-        return self._enabled
+        """Return whether automatic control is enabled (for backwards compatibility)."""
+        return self._mode != MODE_OFF
 
-    async def async_enable(self) -> None:
-        """Enable automatic battery control."""
-        if self._enabled:
+    async def async_set_mode(self, mode: str) -> None:
+        """Set the operating mode."""
+        if mode == self._mode:
             return
 
-        self._enabled = True
-        self.battery_controller.enabled = True
+        old_mode = self._mode
+        self._mode = mode
 
-        # Set up periodic check
-        self._cancel_timer = async_track_time_interval(
-            self.hass,
-            self._async_check_and_update,
-            timedelta(seconds=AUTO_CHECK_INTERVAL),
-        )
-
-        # Run initial check
-        await self._async_check_and_update(dt_util.now())
-
-        _LOGGER.info("Automatic battery control enabled")
-
-    async def async_disable(self) -> None:
-        """Disable automatic battery control."""
-        if not self._enabled:
-            return
-
-        self._enabled = False
-        self.battery_controller.enabled = False
-
-        # Cancel timer
+        # Cancel any existing timer
         if self._cancel_timer:
             self._cancel_timer()
             self._cancel_timer = None
 
-        # Set battery to idle
-        await self.battery_controller.async_set_state(STATE_IDLE)
+        if mode == MODE_OFF:
+            # Disable everything, set battery to idle
+            self.battery_controller.enabled = False
+            await self.battery_controller.async_set_state(STATE_IDLE)
+            _LOGGER.info("Battery control disabled")
 
-        _LOGGER.info("Automatic battery control disabled")
+        elif mode == MODE_AUTO:
+            # Enable automatic mode with periodic checks
+            self.battery_controller.enabled = True
+            self._cancel_timer = async_track_time_interval(
+                self.hass,
+                self._async_check_and_update,
+                timedelta(seconds=AUTO_CHECK_INTERVAL),
+            )
+            # Run initial check
+            await self._async_check_and_update(dt_util.now())
+            _LOGGER.info("Automatic battery control enabled")
+
+        elif mode == MODE_CHARGE:
+            # Force charging mode
+            self.battery_controller.enabled = True
+            charge_power = self._get_charge_power()
+            await self.battery_controller.async_set_state(
+                STATE_CHARGE, charge_power=charge_power
+            )
+            self._last_state = STATE_CHARGE
+            _LOGGER.info("Forced charging mode enabled")
+
+        elif mode == MODE_DISCHARGE:
+            # Force discharging mode
+            self.battery_controller.enabled = True
+            discharge_power = self._get_discharge_power()
+            await self.battery_controller.async_set_state(
+                STATE_DISCHARGE, discharge_power=discharge_power
+            )
+            self._last_state = STATE_DISCHARGE
+            _LOGGER.info("Forced discharging mode enabled")
+
+    async def async_enable(self) -> None:
+        """Enable automatic battery control (backwards compatibility)."""
+        await self.async_set_mode(MODE_AUTO)
+
+    async def async_disable(self) -> None:
+        """Disable automatic battery control (backwards compatibility)."""
+        await self.async_set_mode(MODE_OFF)
 
     async def _async_check_and_update(self, now: datetime) -> None:
         """Check price windows and update battery state if needed."""
-        if not self._enabled:
+        if self._mode != MODE_AUTO:
             return
 
         try:
@@ -137,10 +169,8 @@ class AutomationHandler:
                 discharge_power = None
 
                 if recommended_state == STATE_CHARGE:
-                    # Use configured or default charge power
                     charge_power = self._get_charge_power()
                 elif recommended_state == STATE_DISCHARGE:
-                    # Use configured or default discharge power
                     discharge_power = self._get_discharge_power()
 
                 # Set the new state
@@ -158,13 +188,10 @@ class AutomationHandler:
 
     def _get_charge_power(self) -> int:
         """Get the charging power based on configuration."""
-        # For Solarflow 800 Pro, max input is typically 800-1200W
-        # This could be made configurable
         return 800
 
     def _get_discharge_power(self) -> int:
         """Get the discharging power based on configuration."""
-        # For Solarflow 800 Pro, max output is 800W
         return 800
 
     def set_soc_limits(self, min_soc: int, max_soc: int) -> None:
@@ -175,11 +202,6 @@ class AutomationHandler:
 
     @callback
     def async_on_coordinator_update(self) -> None:
-        """Handle coordinator data update.
-
-        This can be used to react immediately to price changes rather than
-        waiting for the next scheduled check.
-        """
-        if self._enabled:
-            # Schedule an immediate check
+        """Handle coordinator data update."""
+        if self._mode == MODE_AUTO:
             async_call_later(self.hass, 1, self._async_check_and_update)
