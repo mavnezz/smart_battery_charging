@@ -77,8 +77,6 @@ class CurrentPriceSensor(SmartBatterySensorBase):
     """Sensor for current electricity price."""
 
     _attr_name = "Current Price"
-    _attr_device_class = SensorDeviceClass.MONETARY
-    _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = f"{CURRENCY_EURO}/kWh"
     _attr_icon = "mdi:currency-eur"
 
@@ -184,8 +182,6 @@ class AveragePriceSensor(SmartBatterySensorBase):
     """Sensor for average price."""
 
     _attr_name = "Average Price"
-    _attr_device_class = SensorDeviceClass.MONETARY
-    _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = f"{CURRENCY_EURO}/kWh"
     _attr_icon = "mdi:chart-line"
 
@@ -282,14 +278,14 @@ class NextCheapWindowSensor(SmartBatterySensorBase):
         self._attr_unique_id = f"{entry.entry_id}_next_cheap_window"
 
     @property
-    def native_value(self) -> str | None:
-        """Return next cheap window start time."""
+    def native_value(self):
+        """Return next cheap window start time as datetime."""
         if self.coordinator.calculation_result:
             next_window = self.coordinator.calculation_engine.get_next_window(
                 self.coordinator.calculation_result.cheapest_windows, "cheap"
             )
-            if next_window:
-                return next_window.start.isoformat()
+            if next_window and next_window.start:
+                return next_window.start  # Return datetime object, not string
         return None
 
     @property
@@ -324,14 +320,14 @@ class NextExpensiveWindowSensor(SmartBatterySensorBase):
         self._attr_unique_id = f"{entry.entry_id}_next_expensive_window"
 
     @property
-    def native_value(self) -> str | None:
-        """Return next expensive window start time."""
+    def native_value(self):
+        """Return next expensive window start time as datetime."""
         if self.coordinator.calculation_result:
             next_window = self.coordinator.calculation_engine.get_next_window(
                 self.coordinator.calculation_result.expensive_windows, "expensive"
             )
-            if next_window:
-                return next_window.start.isoformat()
+            if next_window and next_window.start:
+                return next_window.start  # Return datetime object, not string
         return None
 
     @property

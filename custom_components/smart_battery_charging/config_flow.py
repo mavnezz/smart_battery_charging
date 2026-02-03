@@ -145,56 +145,47 @@ class SmartBatteryConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class SmartBatteryOptionsFlow(config_entries.OptionsFlow):
     """Handle options flow for Smart Battery Charging."""
 
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize options flow."""
-        self.config_entry = config_entry
-
     def _find_zendure_devices(self) -> dict[str, str]:
         """Find all Zendure devices in Home Assistant."""
         devices: dict[str, str] = {"": "-- Kein Gerät --"}
 
         try:
-            # Get device registry
-            device_reg = dr.async_get(self.hass)
+            # Search all states for Zendure entities
+            all_states = self.hass.states.async_all()
+            seen_devices: set[str] = set()
 
-            # Search for Zendure devices
-            for device in device_reg.devices.values():
-                # Check if device is from Zendure integration
-                for identifier in device.identifiers:
-                    try:
-                        if len(identifier) >= 2:
-                            domain = str(identifier[0])
-                            device_id = str(identifier[1])
-                            if "zendure" in domain.lower():
-                                device_name = device.name or device_id
-                                devices[device_id] = device_name
-                    except (IndexError, TypeError):
-                        continue
+            for state in all_states:
+                entity_id = state.entity_id
+                if "zendure" in entity_id.lower():
+                    # Extract device name from entity_id
+                    parts = entity_id.split(".")
+                    if len(parts) >= 2:
+                        entity_name = parts[1]
+                        # Try to extract base device name
+                        # Remove common prefixes and suffixes
+                        if entity_name.startswith("zendure_"):
+                            entity_name = entity_name[8:]  # Remove "zendure_"
 
-            # If no devices found via device registry, try entity registry
-            if len(devices) == 1:
-                entity_reg = er.async_get(self.hass)
-                seen_devices: set[str] = set()
+                        # Find the device base name by looking for known patterns
+                        base_name = entity_name
+                        for suffix in ["_electric_level", "_battery_level", "_output_power",
+                                      "_input_power", "_solar_power", "_pack_power",
+                                      "_ac_mode", "_bypass_mode", "_state", "_soc",
+                                      "_charge_power", "_discharge_power", "_grid_power"]:
+                            if entity_name.endswith(suffix):
+                                base_name = entity_name[:-len(suffix)]
+                                break
 
-                for entity in entity_reg.entities.values():
-                    entity_id = entity.entity_id
-                    # Look for Zendure entities
-                    if "zendure" in entity_id.lower():
-                        # Extract device identifier from entity_id
-                        parts = entity_id.split(".")
-                        if len(parts) >= 2:
-                            entity_name = parts[1]
-                            # Remove common suffixes to get device name
-                            for suffix in ["_battery_level", "_output_power", "_input_power",
-                                          "_ac_mode", "_bypass_mode", "_state", "_soc",
-                                          "_electric_level", "_solar_input_power"]:
-                                if entity_name.endswith(suffix):
-                                    dev_id = entity_name[:-len(suffix)]
-                                    if dev_id not in seen_devices:
-                                        seen_devices.add(dev_id)
-                                        friendly_name = dev_id.replace("_", " ").title()
-                                        devices[dev_id] = friendly_name
-                                    break
+                        if base_name and base_name not in seen_devices:
+                            seen_devices.add(base_name)
+                            friendly_name = state.attributes.get("friendly_name", base_name)
+                            # Clean up friendly name
+                            for remove in ["Electric Level", "Battery Level", "Output Power",
+                                          "Input Power", "Solar Power", "AC Mode"]:
+                                friendly_name = friendly_name.replace(remove, "").strip()
+                            if not friendly_name:
+                                friendly_name = base_name.replace("_", " ").title()
+                            devices[base_name] = friendly_name
 
         except Exception as err:
             _LOGGER.error("Error finding Zendure devices: %s", err)
