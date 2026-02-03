@@ -146,46 +146,43 @@ class SmartBatteryOptionsFlow(config_entries.OptionsFlow):
     """Handle options flow for Smart Battery Charging."""
 
     def _find_zendure_devices(self) -> dict[str, str]:
-        """Find all Zendure devices in Home Assistant."""
+        """Find all Zendure Solarflow devices in Home Assistant."""
         devices: dict[str, str] = {"": "-- Kein Gerät --"}
 
         try:
-            # Search all states for Zendure entities
+            # Search for entities that have min_soc - this is the key entity we control
             all_states = self.hass.states.async_all()
             seen_devices: set[str] = set()
 
             for state in all_states:
                 entity_id = state.entity_id
-                if "zendure" in entity_id.lower():
-                    # Extract device name from entity_id
-                    parts = entity_id.split(".")
-                    if len(parts) >= 2:
-                        entity_name = parts[1]
-                        # Try to extract base device name
-                        # Remove common prefixes and suffixes
-                        if entity_name.startswith("zendure_"):
-                            entity_name = entity_name[8:]  # Remove "zendure_"
 
-                        # Find the device base name by looking for known patterns
-                        base_name = entity_name
-                        for suffix in ["_electric_level", "_battery_level", "_output_power",
-                                      "_input_power", "_solar_power", "_pack_power",
-                                      "_ac_mode", "_bypass_mode", "_state", "_soc",
-                                      "_charge_power", "_discharge_power", "_grid_power"]:
-                            if entity_name.endswith(suffix):
-                                base_name = entity_name[:-len(suffix)]
-                                break
+                # Look specifically for min_soc entities (our main control)
+                # or electric_level entities (SOC sensor)
+                if entity_id.startswith("number.") and entity_id.endswith("_min_soc"):
+                    # Extract device name: number.solarflow_800_pro_min_soc -> solarflow_800_pro
+                    base_name = entity_id[7:-8]  # Remove "number." and "_min_soc"
 
-                        if base_name and base_name not in seen_devices:
-                            seen_devices.add(base_name)
-                            friendly_name = state.attributes.get("friendly_name", base_name)
-                            # Clean up friendly name
-                            for remove in ["Electric Level", "Battery Level", "Output Power",
-                                          "Input Power", "Solar Power", "AC Mode"]:
-                                friendly_name = friendly_name.replace(remove, "").strip()
-                            if not friendly_name:
-                                friendly_name = base_name.replace("_", " ").title()
-                            devices[base_name] = friendly_name
+                    if base_name and base_name not in seen_devices:
+                        seen_devices.add(base_name)
+                        friendly_name = state.attributes.get("friendly_name", "")
+                        # Clean up friendly name
+                        friendly_name = friendly_name.replace("Min Soc", "").replace("Min SOC", "").strip()
+                        if not friendly_name:
+                            friendly_name = base_name.replace("_", " ").title()
+                        devices[base_name] = friendly_name
+
+                elif entity_id.startswith("sensor.") and entity_id.endswith("_electric_level"):
+                    # Fallback: look for electric_level sensor
+                    base_name = entity_id[7:-15]  # Remove "sensor." and "_electric_level"
+
+                    if base_name and base_name not in seen_devices:
+                        seen_devices.add(base_name)
+                        friendly_name = state.attributes.get("friendly_name", "")
+                        friendly_name = friendly_name.replace("Electric Level", "").strip()
+                        if not friendly_name:
+                            friendly_name = base_name.replace("_", " ").title()
+                        devices[base_name] = friendly_name
 
         except Exception as err:
             _LOGGER.error("Error finding Zendure devices: %s", err)
