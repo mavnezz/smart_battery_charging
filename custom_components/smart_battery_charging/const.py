@@ -1,7 +1,7 @@
 """Constants for Smart Battery Charging integration."""
 
 DOMAIN = "smart_battery_charging"
-VERSION = "0.1.0"
+VERSION = "0.2.5"
 
 # Configuration keys
 CONF_TIBBER_TOKEN = "tibber_token"
@@ -67,4 +67,4 @@ UPDATE_INTERVAL_MINUTES = 5
 PRICE_FETCH_INTERVAL_HOURS = 1
 
 # Platforms
-PLATFORMS = ["sensor", "switch", "number", "select"]
+PLATFORMS = ["sensor", "number", "select"]
