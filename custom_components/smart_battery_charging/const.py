@@ -1,7 +1,7 @@
 """Constants for Smart Battery Charging integration."""
 
 DOMAIN = "smart_battery_charging"
-VERSION = "0.2.9"
+VERSION = "0.3.0"
 
 # Configuration keys
 CONF_TIBBER_TOKEN = "tibber_token"

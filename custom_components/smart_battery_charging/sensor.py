@@ -61,8 +61,9 @@ class SmartBatterySensorBase(CoordinatorEntity[SmartBatteryCoordinator], SensorE
             "identifiers": {(DOMAIN, entry.entry_id)},
             "name": "Smart Battery Charging",
             "manufacturer": "mavnezz",
-            "model": "Tibber Price Optimizer",
-            "sw_version": "0.2.9",
+            "model": "Smart Battery Charging",
+            "sw_version": "0.3.0",
+            "configuration_url": "https://github.com/mavnezz/smart_battery_charging",
         }
 
     @property

@@ -1,0 +1,44 @@
+{
+  "name": "Smart Battery Charging Development",
+  "image": "ghcr.io/home-assistant/devcontainer:stable",
+  "appPort": [
+    "9123:8123"
+  ],
+  "postCreateCommand": "container install",
+  "forwardPorts": [
+    8123
+  ],
+  "portsAttributes": {
+    "9123": {
+      "label": "Home Assistant",
+      "onAutoForward": "notify"
+    }
+  },
+  "extensions": [
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "visualstudioexptteam.vscodeintellicode"
+  ],
+  "mounts": [
+    "source=${localWorkspaceFolder}/custom_components,target=${containerWorkspaceFolder}/config/custom_components,type=bind"
+  ],
+  "settings": {
+    "python.languageServer": "Pylance",
+    "python.pythonPath": "/usr/local/bin/python",
+    "python.linting.pylintEnabled": true,
+    "python.linting.enabled": true,
+    "python.formatting.provider": "black",
+    "editor.formatOnSave": true,
+    "files.eol": "\n",
+    "editor.tabSize": 4,
+    "terminal.integrated.profiles.linux": {
+      "bash": {
+        "path": "bash"
+      }
+    }
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  }
+}

@@ -1,10 +1,21 @@
 # Smart Battery Charging
 
-[![Version](https://img.shields.io/badge/version-0.2.9-blue.svg)](https://github.com/mavnezz/smart_battery_charging/releases)
-[![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![GitHub Release](https://img.shields.io/github/release/mavnezz/smart_battery_charging.svg?style=for-the-badge)](https://github.com/mavnezz/smart_battery_charging/releases)
+[![License](https://img.shields.io/github/license/mavnezz/smart_battery_charging.svg?style=for-the-badge)](LICENSE)
+[![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
+[![GitHub Activity](https://img.shields.io/github/commit-activity/m/mavnezz/smart_battery_charging.svg?style=for-the-badge)](https://github.com/mavnezz/smart_battery_charging/commits/main)
+[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.1+-blue.svg?style=for-the-badge)](https://www.home-assistant.io/)
 
-Eine Home Assistant Integration zur automatischen Steuerung von Batteriespeichern basierend auf dynamischen Strompreisen von Tibber.
+<!-- Uncomment when available:
+[![Discord](https://img.shields.io/discord/YOUR_DISCORD_ID.svg?style=for-the-badge&logo=discord&label=Discord)](YOUR_DISCORD_LINK)
+[![Community Forum](https://img.shields.io/badge/Community-Forum-blue.svg?style=for-the-badge)](YOUR_FORUM_LINK)
+-->
+
+Eine Home Assistant Integration zur **intelligenten, profitablen Steuerung** von Batteriespeichern basierend auf dynamischen Strompreisen von Tibber.
+
+<!-- Place a banner/screenshot here when available:
+![Smart Battery Charging](images/banner.png)
+-->
 
 ## Funktionen
 
@@ -184,29 +195,59 @@ Ja! Die Integration steuert nur den `min_soc`-Wert. Zendures Smart Meter Mode re
 
 Ja, in den Integrationsoptionen. 85% ist ein guter Standardwert für Lithium-Batterien mit Wechselrichter.
 
-## Changelog
+## Dokumentation
 
-### v0.2.9
-- Profitabilitäts-Check: Berücksichtigt Wirkungsgradverluste
-- OFF-Mode Bug behoben: Setzt jetzt korrekt auf Idle
-- Neue Sensor-Attribute: is_profitable, avg_charge_price, avg_discharge_price
-- Default min_spread auf 30% erhöht
+📚 **Ausführliche Dokumentation:**
+- [Konfiguration](docs/configuration.md) - Detaillierte Erklärung aller Optionen
+- [Sensoren](docs/sensors.md) - Übersicht aller verfügbaren Sensoren und Attribute
+- [Services](docs/services.md) - Service-Aufrufe und Automatisierungs-Beispiele
+- [Changelog](CHANGELOG.md) - Vollständiger Änderungsverlauf
 
-### v0.2.8
-- Verbesserte Zendure-Geräte-Erkennung
-- Integration-Icon hinzugefügt
+## Screenshots
 
-### v0.2.7
-- Betriebsmodus-Dropdown (off/auto/charge/discharge)
-- min_soc-Steuerung statt AC-Mode
+### Integration Übersicht
+![Integration Overview](images/integration.png)
+
+Die Integration bietet alle wichtigen Sensoren und Steuerelemente auf einen Blick:
+- 9 Sensoren für Preise, Fenster und Empfehlungen
+- Betriebsmodus-Auswahl (Off/Auto/Charge/Discharge)
+- Einfache Dashboard-Integration
+
+### Konfiguration
+![Configuration](images/configuration.png)
+
+Flexible Konfigurationsoptionen:
+- Zendure Geräte-Auswahl
+- Preisauflösung (stündlich / 15-Minuten)
+- Anpassbare Lade-/Entladefenster
+- Perzentil-basierte Preisanalyse
+- Profitabilitäts-Schwellwert
+- Batteriekapazität und Wirkungsgrad
+
+## Support & Community
+
+- 🐛 [Bug Reports](https://github.com/mavnezz/smart_battery_charging/issues/new?template=bug_report.yml)
+- 💡 [Feature Requests](https://github.com/mavnezz/smart_battery_charging/issues/new?template=feature_request.yml)
+- 💬 [Discussions](https://github.com/mavnezz/smart_battery_charging/discussions)
+- 📖 [Home Assistant Community Forum](https://community.home-assistant.io/)
 
 ## Lizenz
 
-MIT License - siehe LICENSE Datei.
+MIT License - siehe [LICENSE](LICENSE) Datei.
 
 ## Mitwirken
 
-Beiträge sind willkommen! Bitte öffne ein Issue oder einen Pull Request.
+Beiträge sind willkommen! Bitte lies die [Contributing Guidelines](CONTRIBUTING.md) für Details zum Entwicklungsprozess.
+
+## Changelog
+
+Siehe [CHANGELOG.md](CHANGELOG.md) für eine vollständige Liste aller Änderungen.
+
+**Aktuelle Version: 0.3.0**
+- Professionelles Repository-Setup mit GitHub Actions
+- Umfangreiche Dokumentation (Configuration, Sensors, Services)
+- DevContainer für einfaches Development
+- Screenshots und verbessertes README
 
 ---
 

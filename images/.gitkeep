@@ -1,0 +1,12 @@
+# Images Directory
+
+Place screenshots and images here for use in documentation.
+
+## Suggested Images
+
+- `screenshot_sensors.png` - Overview of all sensors in Home Assistant
+- `screenshot_config.png` - Configuration dialog
+- `screenshot_dashboard.png` - Example dashboard card
+- `screenshot_automation.png` - Example automation
+- `logo.png` - Integration logo
+- `banner.png` - Repository banner

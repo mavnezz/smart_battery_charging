@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or Discussion
+    url: https://github.com/mavnezz/smart_battery_charging/discussions
+    about: Ask questions or discuss ideas
+  - name: Home Assistant Community
+    url: https://community.home-assistant.io/
+    about: Get help from the Home Assistant community
