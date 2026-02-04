@@ -3,7 +3,5 @@
   "homeassistant": "2024.1.0",
   "render_readme": true,
   "content_in_root": false,
-  "domains": ["sensor", "select", "number", "switch"],
-  "iot_class": "Cloud Polling",
-  "country": ["DE", "NO", "SE", "NL"]
+  "iot_class": "Cloud Polling"
 }
