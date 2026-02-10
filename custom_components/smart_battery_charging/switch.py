@@ -56,7 +56,7 @@ class AutoModeSwitch(CoordinatorEntity[SmartBatteryCoordinator], SwitchEntity):
             "name": "Smart Battery Charging",
             "manufacturer": "mavnezz",
             "model": "Smart Battery Charging",
-            "sw_version": "0.3.0",
+            "sw_version": "0.4.0",
             "configuration_url": "https://github.com/mavnezz/smart_battery_charging",
         }
 

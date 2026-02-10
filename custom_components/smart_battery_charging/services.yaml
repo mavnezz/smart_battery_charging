@@ -10,6 +10,7 @@ set_battery_state:
         select:
           options:
             - "charge"
+            - "hold"
             - "discharge"
             - "idle"
             - "off"

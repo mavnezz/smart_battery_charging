@@ -13,6 +13,7 @@ from .const import (
     STATE_CHARGE,
     STATE_DISCHARGE,
     STATE_IDLE,
+    STATE_HOLD,
     STATE_OFF,
 )
 
@@ -40,6 +41,7 @@ ZENDURE_ENTITIES = {
 # SOC values for control via min_soc
 SOC_CHARGE = 100  # Set min_soc to 100% to force charging
 SOC_DISCHARGE = 10  # Set min_soc to 10% to allow full discharge
+SOC_HOLD = 100  # Set min_soc to 100% to prevent discharge (hold charge)
 SOC_IDLE = 50  # Set min_soc to 50% for idle/normal operation
 
 # AC Mode values for Zendure (fallback)
@@ -105,6 +107,8 @@ class BatteryController:
         try:
             if state == STATE_CHARGE:
                 return await self._async_start_charging(charge_power)
+            elif state == STATE_HOLD:
+                return await self._async_set_hold()
             elif state == STATE_DISCHARGE:
                 return await self._async_start_discharging(discharge_power)
             elif state == STATE_IDLE:
@@ -144,6 +148,24 @@ class BatteryController:
                 )
 
         self._current_state = STATE_CHARGE
+        return True
+
+    async def _async_set_hold(self) -> bool:
+        """Hold battery at current level by keeping min_soc at 100%."""
+        _LOGGER.info("Setting battery to HOLD via min_soc=%d%%", SOC_HOLD)
+
+        min_soc_entity = self._get_entity_id("min_soc")
+        if min_soc_entity:
+            await self._async_call_service(
+                "number",
+                "set_value",
+                {ATTR_ENTITY_ID: min_soc_entity, "value": SOC_HOLD},
+            )
+            _LOGGER.info("Set %s to %d%%", min_soc_entity, SOC_HOLD)
+        else:
+            _LOGGER.warning("min_soc entity not found for HOLD state")
+
+        self._current_state = STATE_HOLD
         return True
 
     async def _async_start_discharging(self, power: int | None = None) -> bool:

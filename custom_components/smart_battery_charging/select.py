@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, STATE_CHARGE, STATE_DISCHARGE, STATE_IDLE
+from .const import DOMAIN, STATE_CHARGE, STATE_DISCHARGE, STATE_IDLE, STATE_HOLD
 from .coordinator import SmartBatteryCoordinator
 from .automation_handler import AutomationHandler
 
@@ -20,11 +20,13 @@ MODE_OFF = "off"
 MODE_AUTO = "auto"
 MODE_CHARGE = "charge"
 MODE_DISCHARGE = "discharge"
+MODE_HOLD = "hold"
 
 MODE_LABELS = {
     MODE_OFF: "Deaktiviert",
     MODE_AUTO: "Automatik",
     MODE_CHARGE: "Laden",
+    MODE_HOLD: "Halten",
     MODE_DISCHARGE: "Entladen",
 }
 
@@ -52,7 +54,7 @@ class OperatingModeSelect(CoordinatorEntity[SmartBatteryCoordinator], SelectEnti
     _attr_has_entity_name = True
     _attr_name = "Betriebsmodus"
     _attr_icon = "mdi:battery-sync"
-    _attr_options = [MODE_OFF, MODE_AUTO, MODE_CHARGE, MODE_DISCHARGE]
+    _attr_options = [MODE_OFF, MODE_AUTO, MODE_CHARGE, MODE_HOLD, MODE_DISCHARGE]
 
     def __init__(
         self,
@@ -70,7 +72,7 @@ class OperatingModeSelect(CoordinatorEntity[SmartBatteryCoordinator], SelectEnti
             "name": "Smart Battery Charging",
             "manufacturer": "mavnezz",
             "model": "Smart Battery Charging",
-            "sw_version": "0.3.0",
+            "sw_version": "0.4.0",
             "configuration_url": "https://github.com/mavnezz/smart_battery_charging",
         }
 
@@ -89,6 +91,8 @@ class OperatingModeSelect(CoordinatorEntity[SmartBatteryCoordinator], SelectEnti
             return "mdi:battery-sync"
         elif mode == MODE_CHARGE:
             return "mdi:battery-charging"
+        elif mode == MODE_HOLD:
+            return "mdi:battery-lock"
         elif mode == MODE_DISCHARGE:
             return "mdi:battery-arrow-down"
         return "mdi:battery"

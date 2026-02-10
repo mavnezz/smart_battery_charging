@@ -17,6 +17,7 @@ from .const import (
     STATE_CHARGE,
     STATE_DISCHARGE,
     STATE_IDLE,
+    STATE_HOLD,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -169,17 +170,37 @@ class CalculationEngine:
         current_price = None
         recommended_state = STATE_IDLE
 
+        # Find current price
         for window in windows:
             if window.is_active(now):
                 current_price = window.value
-
-                # Check if current window is in cheap windows
-                if any(w.start == window.start for w in cheap_windows):
-                    recommended_state = STATE_CHARGE
-                # Check if current window is in expensive windows
-                elif any(w.start == window.start for w in expensive_windows):
-                    recommended_state = STATE_DISCHARGE
                 break
+
+        # Check if currently in a cheap or expensive window
+        in_cheap_window = any(w.is_active(now) for w in cheap_windows)
+        in_expensive_window = any(w.is_active(now) for w in expensive_windows)
+
+        if in_cheap_window:
+            recommended_state = STATE_CHARGE
+        elif in_expensive_window:
+            recommended_state = STATE_DISCHARGE
+        else:
+            # Check if we are BETWEEN a past cheap window and a future expensive window.
+            # Battery was charged → hold until discharge time.
+            most_recent_cheap_end = None
+            for w in sorted(cheap_windows, key=lambda x: x.end, reverse=True):
+                if w.end <= now:
+                    most_recent_cheap_end = w.end
+                    break
+
+            next_expensive_start = None
+            for w in sorted(expensive_windows, key=lambda x: x.start):
+                if w.start > now:
+                    next_expensive_start = w.start
+                    break
+
+            if most_recent_cheap_end is not None and next_expensive_start is not None:
+                recommended_state = STATE_HOLD
 
         # Calculate potential savings
         avg_cheap = (
@@ -219,8 +240,8 @@ class CalculationEngine:
             potential_savings = (avg_expensive * self.battery_efficiency) - avg_cheap
         else:
             potential_savings = 0.0
-            # If not profitable, don't recommend charge/discharge
-            if recommended_state != STATE_IDLE:
+            # If not profitable, don't recommend charge/discharge/hold
+            if recommended_state in (STATE_CHARGE, STATE_DISCHARGE, STATE_HOLD):
                 recommended_state = STATE_IDLE
                 _LOGGER.info(
                     "Operation not profitable: spread %.1f%% < required %.1f%% (breakeven=%.1f%%, min_spread=%.1f%%)",

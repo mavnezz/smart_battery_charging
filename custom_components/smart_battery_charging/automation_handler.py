@@ -14,8 +14,10 @@ from .const import (
     STATE_CHARGE,
     STATE_DISCHARGE,
     STATE_IDLE,
+    STATE_HOLD,
     CONF_BATTERY_CAPACITY,
     DEFAULT_BATTERY_EFFICIENCY,
+    MIN_STATE_DURATION_MINUTES,
 )
 
 if TYPE_CHECKING:
@@ -32,6 +34,7 @@ MODE_OFF = "off"
 MODE_AUTO = "auto"
 MODE_CHARGE = "charge"
 MODE_DISCHARGE = "discharge"
+MODE_HOLD = "hold"
 
 
 class AutomationHandler:
@@ -54,6 +57,7 @@ class AutomationHandler:
         self._last_state = STATE_IDLE
         self._min_soc = 10  # Minimum SOC before stopping discharge
         self._max_soc = 100  # Maximum SOC before stopping charge
+        self._last_state_change: datetime | None = None
 
     @property
     def mode(self) -> str:
@@ -84,6 +88,7 @@ class AutomationHandler:
             await self.battery_controller.async_set_state(STATE_IDLE)
             self.battery_controller.enabled = False
             self._last_state = STATE_IDLE
+            self._last_state_change = None
             _LOGGER.info("Battery control disabled, set to idle")
 
         elif mode == MODE_AUTO:
@@ -96,6 +101,7 @@ class AutomationHandler:
             )
             # Run initial check
             await self._async_check_and_update(dt_util.now())
+            self._last_state_change = dt_util.now()
             _LOGGER.info("Automatic battery control enabled")
 
         elif mode == MODE_CHARGE:
@@ -106,7 +112,16 @@ class AutomationHandler:
                 STATE_CHARGE, charge_power=charge_power
             )
             self._last_state = STATE_CHARGE
+            self._last_state_change = dt_util.now()
             _LOGGER.info("Forced charging mode enabled")
+
+        elif mode == MODE_HOLD:
+            # Force hold mode
+            self.battery_controller.enabled = True
+            await self.battery_controller.async_set_state(STATE_HOLD)
+            self._last_state = STATE_HOLD
+            self._last_state_change = dt_util.now()
+            _LOGGER.info("Forced hold mode enabled")
 
         elif mode == MODE_DISCHARGE:
             # Force discharging mode
@@ -116,6 +131,7 @@ class AutomationHandler:
                 STATE_DISCHARGE, discharge_power=discharge_power
             )
             self._last_state = STATE_DISCHARGE
+            self._last_state_change = dt_util.now()
             _LOGGER.info("Forced discharging mode enabled")
 
     async def async_enable(self) -> None:
@@ -125,6 +141,13 @@ class AutomationHandler:
     async def async_disable(self) -> None:
         """Disable automatic battery control (backwards compatibility)."""
         await self.async_set_mode(MODE_OFF)
+
+    def _can_change_state(self, now: datetime) -> bool:
+        """Check if enough time has passed since last state change."""
+        if self._last_state_change is None:
+            return True
+        elapsed = (now - self._last_state_change).total_seconds()
+        return elapsed >= MIN_STATE_DURATION_MINUTES * 60
 
     async def _async_check_and_update(self, now: datetime) -> None:
         """Check price windows and update battery state if needed."""
@@ -138,7 +161,38 @@ class AutomationHandler:
                 _LOGGER.debug("No calculation result available")
                 return
 
-            recommended_state = result.recommended_state
+            # Real-time window check against actual current time
+            # (the coordinator snapshot may be up to 5 min stale)
+            current_now = dt_util.now()
+            in_cheap = any(w.is_active(current_now) for w in result.cheapest_windows)
+            in_expensive = any(w.is_active(current_now) for w in result.expensive_windows)
+
+            if in_cheap:
+                recommended_state = STATE_CHARGE
+            elif in_expensive:
+                recommended_state = STATE_DISCHARGE
+            else:
+                # Check HOLD: between a past cheap window and a future expensive window
+                most_recent_cheap_end = None
+                for w in sorted(result.cheapest_windows, key=lambda x: x.end, reverse=True):
+                    if w.end <= current_now:
+                        most_recent_cheap_end = w.end
+                        break
+
+                next_expensive_start = None
+                for w in sorted(result.expensive_windows, key=lambda x: x.start):
+                    if w.start > current_now:
+                        next_expensive_start = w.start
+                        break
+
+                if most_recent_cheap_end is not None and next_expensive_start is not None:
+                    recommended_state = STATE_HOLD
+                else:
+                    recommended_state = STATE_IDLE
+
+            # Override if not profitable
+            if not result.is_profitable and recommended_state in (STATE_CHARGE, STATE_DISCHARGE, STATE_HOLD):
+                recommended_state = STATE_IDLE
 
             # Check SOC limits before acting
             current_soc = await self.battery_controller.async_get_soc()
@@ -151,15 +205,24 @@ class AutomationHandler:
                     )
                     recommended_state = STATE_IDLE
 
-                # Don't charge if SOC is at maximum
+                # If battery is full during charge, switch to hold
                 if recommended_state == STATE_CHARGE and current_soc >= self._max_soc:
                     _LOGGER.info(
-                        "SOC (%.1f%%) at maximum, skipping charge", current_soc
+                        "SOC (%.1f%%) at maximum, switching to HOLD", current_soc
                     )
-                    recommended_state = STATE_IDLE
+                    recommended_state = STATE_HOLD
 
             # Only act if state changed
             if recommended_state != self._last_state:
+                # Minimum state duration debounce
+                if not self._can_change_state(current_now):
+                    _LOGGER.debug(
+                        "State change from %s to %s suppressed (minimum duration not met)",
+                        self._last_state,
+                        recommended_state,
+                    )
+                    return
+
                 _LOGGER.info(
                     "Battery state changing from %s to %s",
                     self._last_state,
@@ -184,6 +247,7 @@ class AutomationHandler:
 
                 if success:
                     self._last_state = recommended_state
+                    self._last_state_change = current_now
 
         except Exception as err:
             _LOGGER.error("Error in automation check: %s", err)

@@ -15,7 +15,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, STATE_CHARGE, STATE_DISCHARGE, STATE_IDLE
+from .const import DOMAIN, STATE_CHARGE, STATE_DISCHARGE, STATE_IDLE, STATE_HOLD
 from .coordinator import SmartBatteryCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -62,7 +62,7 @@ class SmartBatterySensorBase(CoordinatorEntity[SmartBatteryCoordinator], SensorE
             "name": "Smart Battery Charging",
             "manufacturer": "mavnezz",
             "model": "Smart Battery Charging",
-            "sw_version": "0.3.0",
+            "sw_version": "0.4.0",
             "configuration_url": "https://github.com/mavnezz/smart_battery_charging",
         }
 
@@ -138,6 +138,8 @@ class RecommendedStateSensor(SmartBatterySensorBase):
         state = self.native_value
         if state == STATE_CHARGE:
             return "mdi:battery-charging"
+        elif state == STATE_HOLD:
+            return "mdi:battery-lock"
         elif state == STATE_DISCHARGE:
             return "mdi:battery-arrow-down"
         return "mdi:battery"

@@ -1,7 +1,7 @@
 """Constants for Smart Battery Charging integration."""
 
 DOMAIN = "smart_battery_charging"
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 
 # Configuration keys
 CONF_TIBBER_TOKEN = "tibber_token"
@@ -39,6 +39,7 @@ DEFAULT_BATTERY_EFFICIENCY = 0.85  # 85% round-trip efficiency
 STATE_CHARGE = "charge"
 STATE_DISCHARGE = "discharge"
 STATE_IDLE = "idle"
+STATE_HOLD = "hold"
 STATE_OFF = "off"
 
 # Price levels from Tibber
@@ -64,6 +65,7 @@ ATTR_POTENTIAL_SAVINGS = "potential_savings"
 
 # Update intervals
 UPDATE_INTERVAL_MINUTES = 5
+MIN_STATE_DURATION_MINUTES = 15
 PRICE_FETCH_INTERVAL_HOURS = 1
 
 # Platforms

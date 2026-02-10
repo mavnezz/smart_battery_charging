@@ -71,12 +71,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry_id=entry.entry_id,
     )
 
+    # Register automation handler as coordinator listener
+    unsub_coordinator_listener = coordinator.async_add_listener(
+        automation_handler.async_on_coordinator_update
+    )
+
     # Store coordinator, controller, and automation handler
     hass.data[DOMAIN][entry.entry_id] = {
         "coordinator": coordinator,
         "tibber_client": tibber_client,
         "battery_controller": battery_controller,
         "automation_handler": automation_handler,
+        "unsub_coordinator_listener": unsub_coordinator_listener,
     }
 
     # Set up platforms
@@ -96,7 +102,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
     if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id)
+        data = hass.data[DOMAIN].pop(entry.entry_id)
+        # Unsubscribe coordinator listener
+        unsub = data.get("unsub_coordinator_listener")
+        if unsub:
+            unsub()
 
     return unload_ok
 
